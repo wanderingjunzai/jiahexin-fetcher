@@ -189,15 +189,19 @@ def main():
 
         if 'yt_results' in st.session_state and st.session_state.yt_results:
             # 转换数据为 DataFrame 以便显示
+            # 注意：youtube_tool 返回的字段顺序是 title, url, duration, channel
             df = pd.DataFrame(st.session_state.yt_results)
-            # 重命名列以便显示
+            
+            # 重新整理列顺序和命名，确保不会填反
+            df = df[['title', 'channel', 'duration', 'url']]
             df.columns = ["标题", "频道", "时长", "链接"]
+            
             # 添加选择列
             df.insert(0, "选择", False)
             
             st.markdown("### 🎬 搜索结果")
             
-            # 修正列显示：交换频道和链接的逻辑位置，并调整列宽
+            # 配置表格显示
             edited_df = st.data_editor(
                 df,
                 column_config={
@@ -215,18 +219,21 @@ def main():
                         "发布频道",
                         width="medium",
                     ),
+                    "时长": st.column_config.TextColumn(
+                        "视频时长",
+                        width="small",
+                    ),
                     "链接": st.column_config.LinkColumn(
                         "视频链接",
                         width="large",
                     ),
-                    "时长": None, # 隐藏时长列
                 },
                 disabled=["标题", "频道", "链接", "时长"],
                 hide_index=True,
-                use_container_width=True, # 强制填满容器宽度
+                use_container_width=True,
             )
             
-            # 修正复制逻辑：提取真正的视频链接
+            # 提取选中的视频链接
             selected_rows = edited_df[edited_df["选择"] == True]
             if not selected_rows.empty:
                 links_to_copy = "\n".join(selected_rows["链接"].tolist())
