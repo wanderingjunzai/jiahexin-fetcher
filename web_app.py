@@ -29,6 +29,15 @@ st.set_page_config(
 # 自定义 CSS 样式
 st.markdown("""
 <style>
+    /* 优化表格中复选框的样式 */
+    div[data-testid="stDataEditor"] .stCheckbox input[type="checkbox"]:checked {
+        background-color: #ff0000 !important;
+        border-color: #ff0000 !important;
+    }
+    /* 让表格容器更宽 */
+    div[data-testid="stDataEditor"] {
+        width: 100% !important;
+    }
     .news-card {
         padding: 1.5rem;
         border-radius: 0.5rem;
@@ -179,38 +188,51 @@ def main():
                         st.session_state.yt_results = None
 
         if 'yt_results' in st.session_state and st.session_state.yt_results:
+            # 转换数据为 DataFrame 以便显示
             df = pd.DataFrame(st.session_state.yt_results)
             # 重命名列以便显示
-            df.columns = ["标题", "频道", "时长", "视频链接"]
-            
-            # 使用 st.data_editor 实现可选中的表格
-            st.markdown("### 🎬 搜索结果")
-            st.write("勾选下方表格左侧复选框，然后点击按钮复制链接。")
-            
+            df.columns = ["标题", "频道", "时长", "链接"]
             # 添加选择列
-            df.insert(0, "选择", True)
+            df.insert(0, "选择", False)
+            
+            st.markdown("### 🎬 搜索结果")
+            
+            # 修正列显示：交换频道和链接的逻辑位置，并调整列宽
             edited_df = st.data_editor(
                 df,
                 column_config={
-                    "选择": st.column_config.CheckboxColumn(required=True),
-                    "视频链接": st.column_config.LinkColumn()
+                    "选择": st.column_config.CheckboxColumn(
+                        "选择",
+                        help="勾选以复制链接",
+                        default=False,
+                        width="small",
+                    ),
+                    "标题": st.column_config.TextColumn(
+                        "视频标题",
+                        width="large",
+                    ),
+                    "频道": st.column_config.TextColumn(
+                        "发布频道",
+                        width="medium",
+                    ),
+                    "链接": st.column_config.LinkColumn(
+                        "视频链接",
+                        width="large",
+                    ),
+                    "时长": None, # 隐藏时长列
                 },
-                disabled=["标题", "频道", "时长", "视频链接"],
+                disabled=["标题", "频道", "链接", "时长"],
                 hide_index=True,
-                use_container_width=True
+                use_container_width=True, # 强制填满容器宽度
             )
             
-            # 复制链接功能
-            selected_urls = edited_df[edited_df["选择"]]["视频链接"].tolist()
-            if selected_urls:
-                copy_text = "\n".join(selected_urls)
-                if st.button(f"📋 复制选中的 {len(selected_urls)} 条链接"):
-                    # Web 端复制到剪贴板比较特殊，通常通过 st.code 或 st.text_area 配合用户手动复制，
-                    # 或者使用 st.toast/st.success 提示
-                    st.text_area("点击下方框内内容并全选复制 (Ctrl+A, Ctrl+C):", value=copy_text, height=100)
-                    st.success("已生成复制文本，请在上方文本框中手动复制。")
+            # 修正复制逻辑：提取真正的视频链接
+            selected_rows = edited_df[edited_df["选择"] == True]
+            if not selected_rows.empty:
+                links_to_copy = "\n".join(selected_rows["链接"].tolist())
+                st.text_area("已选择的链接 (复制下方内容):", value=links_to_copy, height=100)
             else:
-                st.info("请在表格中勾选至少一个视频以获取链接。")
+                st.info("在表格中勾选视频以获取链接")
 
 if __name__ == "__main__":
     main()
