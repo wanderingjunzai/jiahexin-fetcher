@@ -2,5 +2,7 @@ akshare
 pandas
 yt-dlp
 jieba
-streamlit
+streamlit>=1.31.0
 requests
+altair<5.0.0
+
