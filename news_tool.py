@@ -176,7 +176,7 @@ def fetch_cls_news_fallback():
                 break
         print(f"WSN {channel['name']}: Finished after {page_count} pages")
 
-    # 3. 抓取国际源 (RSS) - 使用 look.py 的正则解析方式（不依赖 feedparser）
+    # 3. 抓取国际源 (RSS) - 严格按照桌面版逻辑
     print("Fetching from International Sources (RSS)...")
     int_sources = [
         {"name": "CNBC (Business)", "url": "https://www.cnbc.com/id/10001147/device/rss/rss.html"},
@@ -198,17 +198,20 @@ def fetch_cls_news_fallback():
                         title = title_match.group(1).strip()
                         title = re.sub(r'<!\[CDATA\[(.*?)\]\]>', r'\1', title)
                         
-                        # 解析时间并过滤
+                        # 严格的时间解析
                         dt = None
                         if date_match:
                             try:
                                 date_str = date_match.group(1).strip()
-                                # 尝试解析常见的 RSS 日期格式
-                                dt = datetime.strptime(date_str[:25].strip(), '%a, %d %b %Y %H:%M:%S')
+                                # 尝试解析常见的 RSS 日期格式 (Mon, 09 Feb 2026 15:50:12 GMT)
+                                # 修正解析逻辑，确保能处理带时区的格式
+                                import email.utils
+                                parsed_date = email.utils.parsedate_to_datetime(date_str)
+                                dt = parsed_date.astimezone(timedelta(hours=8)).replace(tzinfo=None) # 转北京时间并去时区
                             except:
-                                dt = datetime.now()
-                        else:
-                            dt = datetime.now()
+                                continue # 如果时间解析失败，跳过该条，防止脏数据
+                        
+                        if not dt: continue
                         
                         ts = int(dt.timestamp())
                         if ts < start_timestamp: continue
@@ -224,12 +227,12 @@ def fetch_cls_news_fallback():
                             content = re.sub(r'<[^>]+>', '', content)
                         
                         all_news.append({
-                            '标题': f"【{source['name']}】{title}",
+                            '标题': title,
                             '内容': content,
                             '发布时间': dt.strftime('%H:%M:%S'),
                             '发布日期': dt.strftime('%Y-%m-%d'),
                             'timestamp': ts,
-                            '来源': f"{source['name']}"
+                            '来源': source['name']
                         })
         except Exception as e:
             print(f"RSS error for {source['name']}: {e}")
