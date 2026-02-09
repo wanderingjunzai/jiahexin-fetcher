@@ -40,7 +40,7 @@ def check_password():
 def main():
     # 页面配置
     st.set_page_config(
-        page_title="嘉和信 信息抓取系统",
+        page_title="嘉和信信息抓取系统",
         page_icon="🔍",
         layout="wide",
         initial_sidebar_state="collapsed"
@@ -48,6 +48,12 @@ def main():
 
     if not check_password():
         return
+
+    # 初始化 session_state
+    if 'news_data' not in st.session_state:
+        st.session_state.news_data = None
+    if 'yt_results' not in st.session_state:
+        st.session_state.yt_results = None
 
     # 自定义 CSS 样式
     st.markdown("""
@@ -100,7 +106,7 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-    st.title("🔍 Jiahexin 数据抓取系统")
+    st.title("🔍 嘉和信信息抓取系统")
     
     tab1, tab2 = st.tabs(["📰 近3日新闻 & 热点", "🎥 YouTube 视频搜索"])
     
@@ -175,7 +181,7 @@ def main():
                     <div class="news-content">{content}</div>
                 </div>
                 """, unsafe_allow_html=True)
-        elif st.session_state.news_data == []:
+        elif st.session_state.get('news_data') == []:
             st.warning("未找到相关新闻。如果是刚启动，可能是网络超时，请点击“获取新闻”重试。")
 
     # --- 2. YouTube 面板 ---
