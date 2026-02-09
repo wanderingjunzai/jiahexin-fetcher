@@ -18,66 +18,88 @@ if current_dir not in sys.path:
 from news_tool import fetch_cls_news, get_hot_keywords
 from youtube_tool import search_youtube
 
-# 页面配置
-st.set_page_config(
-    page_title="Jiahexin 数据抓取系统",
-    page_icon="🔍",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# --- 权限验证 ---
+def check_password():
+    """验证密码，成功返回 True，否则显示输入框"""
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
 
-# 自定义 CSS 样式
-st.markdown("""
-<style>
-    /* 优化表格中复选框的样式 */
-    div[data-testid="stDataEditor"] .stCheckbox input[type="checkbox"]:checked {
-        background-color: #ff0000 !important;
-        border-color: #ff0000 !important;
-    }
-    /* 让表格容器更宽 */
-    div[data-testid="stDataEditor"] {
-        width: 100% !important;
-    }
-    .news-card {
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        border: 1px solid #e0e0e0;
-        margin-bottom: 1rem;
-        background-color: white;
-    }
-    .news-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 0.5rem;
-    }
-    .news-label {
-        color: white;
-        padding: 2px 8px;
-        font-size: 0.8rem;
-        border-radius: 4px;
-        font-weight: bold;
-    }
-    .source-domestic { background-color: #3498db; }
-    .source-global { background-color: #9b59b6; }
-    .news-time { color: #e74c3c; font-size: 0.9rem; }
-    .news-title { font-size: 1.1rem; font-weight: bold; color: #2c3e50; }
-    .news-content { color: #34495e; line-height: 1.6; margin-top: 0.5rem; white-space: pre-wrap; }
-    .hot-keyword {
-        display: inline-block;
-        background-color: #fff3e0;
-        color: #e65100;
-        padding: 4px 12px;
-        border-radius: 16px;
-        margin-right: 8px;
-        margin-bottom: 8px;
-        font-size: 0.9rem;
-        border: 1px solid #ffe0b2;
-    }
-</style>
-""", unsafe_allow_html=True)
+    if st.session_state.authenticated:
+        return True
+
+    st.markdown("### 🔒 系统访问权限")
+    pwd = st.text_input("请输入访问密码", type="password")
+    if st.button("进入系统"):
+        if pwd == "jhx654321":
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("密码错误！")
+    return False
 
 def main():
+    # 页面配置
+    st.set_page_config(
+        page_title="嘉和信 信息抓取系统",
+        page_icon="🔍",
+        layout="wide",
+        initial_sidebar_state="collapsed"
+    )
+
+    if not check_password():
+        return
+
+    # 自定义 CSS 样式
+    st.markdown("""
+    <style>
+        /* 优化表格中复选框的样式 */
+        div[data-testid="stDataEditor"] .stCheckbox input[type="checkbox"]:checked {
+            background-color: #ff0000 !important;
+            border-color: #ff0000 !important;
+        }
+        /* 让表格容器更宽 */
+        div[data-testid="stDataEditor"] {
+            width: 100% !important;
+        }
+        .news-card {
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 1rem;
+            background-color: white;
+        }
+        .news-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0.5rem;
+        }
+        .news-label {
+            color: white;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .source-domestic { background-color: #3498db; }
+        .source-global { background-color: #9b59b6; }
+        .news-time { color: #e74c3c; font-size: 0.9rem; }
+        .news-title { font-size: 1.1rem; font-weight: bold; color: #2c3e50; }
+        .news-content { color: #34495e; line-height: 1.6; margin-top: 0.5rem; white-space: pre-wrap; }
+        .hot-keyword {
+            display: inline-block;
+            background-color: #fff3e0;
+            color: #e65100;
+            padding: 4px 12px;
+            border-radius: 16px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            border: 1px solid #ffe0b2;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.title("🔍 Jiahexin 数据抓取系统")
     
     tab1, tab2 = st.tabs(["📰 近3日新闻 & 热点", "🎥 YouTube 视频搜索"])
@@ -92,11 +114,8 @@ def main():
             st.write(" ") # 占位
             fetch_news_btn = st.button("获取新闻", use_container_width=True)
             
-        # 初始加载或点击按钮
-        if 'news_data' not in st.session_state:
-            st.session_state.news_data = None
-            
-        if fetch_news_btn or st.session_state.news_data is None:
+        # 只有点击按钮后才执行抓取，不再进入页面自动抓取
+        if fetch_news_btn:
             with st.spinner("正在抓取最新新闻，请稍候..."):
                 try:
                     items = fetch_cls_news(keyword=news_keyword)
@@ -105,7 +124,7 @@ def main():
                     st.error(f"抓取失败: {e}")
                     st.session_state.news_data = []
 
-        if st.session_state.news_data:
+        if 'news_data' in st.session_state and st.session_state.news_data:
             items = st.session_state.news_data
             
             # 热点话题
@@ -196,8 +215,8 @@ def main():
             df = df[['title', 'channel', 'duration', 'url']]
             df.columns = ["标题", "频道", "时长", "链接"]
             
-            # 添加选择列
-            df.insert(0, "选择", False)
+            # 添加选择列，默认设为 True (全选)
+            df.insert(0, "选择", True)
             
             st.markdown("### 🎬 搜索结果")
             
@@ -208,7 +227,7 @@ def main():
                     "选择": st.column_config.CheckboxColumn(
                         "选择",
                         help="勾选以复制链接",
-                        default=False,
+                        default=True,
                         width="small",
                     ),
                     "标题": st.column_config.TextColumn(
@@ -233,11 +252,13 @@ def main():
                 use_container_width=True,
             )
             
-            # 提取选中的视频链接
+            # 提取选中的视频链接并提供复制按钮
             selected_rows = edited_df[edited_df["选择"] == True]
             if not selected_rows.empty:
                 links_to_copy = "\n".join(selected_rows["链接"].tolist())
-                st.text_area("已选择的链接 (复制下方内容):", value=links_to_copy, height=100)
+                # 隐藏 text_area，只提供一个按钮
+                st.code(links_to_copy, language="text")
+                st.info("👆 请点击上方框内右上角的按钮直接复制全部链接")
             else:
                 st.info("在表格中勾选视频以获取链接")
 
