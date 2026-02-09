@@ -1,0 +1,6 @@
+akshare
+pandas
+yt-dlp
+jieba
+streamlit
+requests
