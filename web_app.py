@@ -1,9 +1,14 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import traceback
 import sys
 import os
+
+# --- 时区处理 ---
+def get_beijing_time():
+    # Streamlit Cloud 默认是 UTC 时间，需要手动转为北京时间 (UTC+8)
+    return datetime.utcnow() + timedelta(hours=8)
 
 # 将当前目录加入搜索路径，确保能找到工具类
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -104,7 +109,8 @@ def main():
             
             # 新闻列表
             st.markdown(f"### 📋 找到 {len(items)} 条相关新闻")
-            today_str = datetime.now().strftime('%Y-%m-%d')
+            beijing_now = get_beijing_time()
+            today_str = beijing_now.strftime('%Y-%m-%d')
             
             for item in items:
                 title = item.get('标题', '').strip()
@@ -113,7 +119,20 @@ def main():
                 content = item.get('内容', '').strip()
                 source = item.get('来源', '未知').strip()
                 
-                display_time = time_str if date_str == today_str else f"{date_str} {time_str}"
+                # 针对 Streamlit Cloud 的时区修正：
+                # 原始抓取到的 timestamp 是北京时间戳，但在云端服务器（UTC）环境下
+                # datetime.fromtimestamp(ctime) 会按 UTC 转换，导致显示慢 8 小时
+                ctime = item.get('timestamp')
+                if ctime:
+                    # 强制按北京时间 (UTC+8) 显示
+                    dt_beijing = datetime.utcfromtimestamp(ctime) + timedelta(hours=8)
+                    display_time = dt_beijing.strftime('%H:%M:%S')
+                    display_date = dt_beijing.strftime('%Y-%m-%d')
+                else:
+                    display_time = time_str
+                    display_date = date_str
+
+                final_display_time = display_time if display_date == today_str else f"{display_date} {display_time}"
                 source_class = "source-global" if any(x in source for x in ["华尔街见闻", "CNBC", "Yahoo"]) else "source-domestic"
                 
                 header_title = f"【{title}】" if title and title != "快讯" else ""
@@ -122,7 +141,7 @@ def main():
                 <div class="news-card">
                     <div class="news-header">
                         <span class="news-label {source_class}">{source}</span>
-                        <span class="news-time">{display_time}</span>
+                        <span class="news-time">{final_display_time}</span>
                         <span class="news-title">{header_title}</span>
                     </div>
                     <div class="news-content">{content}</div>
