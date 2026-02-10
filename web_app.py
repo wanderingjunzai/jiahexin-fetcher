@@ -186,27 +186,53 @@ def main():
 
     # --- 2. YouTube 面板 ---
     with tab2:
-        col1, col2, col3 = st.columns([3, 1, 1])
-        with col1:
-            yt_keyword = st.text_input("输入关键词搜索 YouTube 视频...", key="yt_input")
-        with col2:
-            yt_limit = st.number_input("搜索数量", min_value=1, max_value=50, value=10)
-        with col3:
-            st.write(" ") # 占位
-            st.write(" ") # 占位
-            yt_search_btn = st.button("搜索视频", use_container_width=True)
+        with st.container():
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                yt_keyword = st.text_input("输入关键词搜索 YouTube 视频...", key="yt_input")
+            with col2:
+                yt_limit = st.number_input("获取结果数量", min_value=1, max_value=50, value=10)
+            
+            # 筛选选项
+            filter_col1, filter_col2, filter_col3 = st.columns(3)
+            with filter_col1:
+                yt_sort = st.selectbox("排序依据", 
+                    options=["综合排序", "最新发布", "最多播放", "最多点赞"], 
+                    index=0)
+                sort_map = {"综合排序": "relevance", "最新发布": "date", "最多播放": "view_count", "最多点赞": "like_count"}
+            
+            with filter_col2:
+                yt_date = st.selectbox("发布时间", 
+                    options=["无时间限制", "一周内", "3个月内", "半年内", "1年内", "2年内"], 
+                    index=0)
+                date_map = {"无时间限制": "all", "一周内": "week", "3个月内": "3months", "半年内": "6months", "1年内": "year", "2年内": "2years"}
+            
+            with filter_col3:
+                yt_dur = st.selectbox("视频时长", 
+                    options=["无限制", "15min内", "15~30min", "30~1h", "1h~2h", "2h以上"], 
+                    index=0)
+                dur_map = {"无限制": "all", "15min内": "under15", "15~30min": "15to30", "30~1h": "30to60", "1h~2h": "60to120", "2h以上": "over120"}
+
+            st.write(" ")
+            yt_search_btn = st.button("开始搜索视频", use_container_width=True)
             
         if yt_search_btn:
             if not yt_keyword:
                 st.warning("请输入关键词")
             else:
-                with st.spinner("正在搜索 YouTube，请确保网络环境正常..."):
+                with st.spinner("正在根据筛选条件搜索 YouTube，请稍候..."):
                     try:
-                        results = search_youtube(yt_keyword, limit=yt_limit)
+                        results = search_youtube(
+                            yt_keyword, 
+                            limit=yt_limit, 
+                            sort_by=sort_map[yt_sort],
+                            upload_date_filter=date_map[yt_date],
+                            duration_filter=dur_map[yt_dur]
+                        )
                         if results:
                             st.session_state.yt_results = results
                         else:
-                            st.error("未找到视频或抓取失败。")
+                            st.error("未找到符合条件的视频，请尝试放宽筛选要求。")
                             st.session_state.yt_results = None
                     except Exception as e:
                         st.error(f"搜索出错: {e}")
@@ -214,12 +240,11 @@ def main():
 
         if 'yt_results' in st.session_state and st.session_state.yt_results:
             # 转换数据为 DataFrame 以便显示
-            # 注意：youtube_tool 返回的字段顺序是 title, url, duration, channel
             df = pd.DataFrame(st.session_state.yt_results)
             
-            # 重新整理列顺序和命名，确保不会填反
-            df = df[['title', 'channel', 'duration', 'url']]
-            df.columns = ["标题", "频道", "时长", "链接"]
+            # 重新整理列顺序和命名
+            df = df[["title", "channel", "duration", "view_count", "like_count", "publish_date", "url"]]
+            df.columns = ["标题", "频道", "时长", "观看次数", "点赞数", "发布日期", "链接"]
             
             # 添加选择列，默认设为 True (全选)
             df.insert(0, "选择", True)
@@ -236,24 +261,15 @@ def main():
                         default=True,
                         width="small",
                     ),
-                    "标题": st.column_config.TextColumn(
-                        "视频标题",
-                        width="large",
-                    ),
-                    "频道": st.column_config.TextColumn(
-                        "发布频道",
-                        width="medium",
-                    ),
-                    "时长": st.column_config.TextColumn(
-                        "视频时长",
-                        width="small",
-                    ),
-                    "链接": st.column_config.LinkColumn(
-                        "视频链接",
-                        width="large",
-                    ),
+                    "标题": st.column_config.TextColumn("标题", width="large"),
+                    "频道": st.column_config.TextColumn("频道", width="medium"),
+                    "时长": st.column_config.TextColumn("时长", width="small"),
+                    "观看次数": st.column_config.TextColumn("观看次数", width="small"),
+                    "点赞数": st.column_config.TextColumn("点赞数", width="small"),
+                    "发布日期": st.column_config.TextColumn("发布日期", width="small"),
+                    "链接": st.column_config.LinkColumn("链接", width="medium"),
                 },
-                disabled=["标题", "频道", "链接", "时长"],
+                disabled=["标题", "频道", "时长", "观看次数", "点赞数", "发布日期", "链接"],
                 hide_index=True,
                 use_container_width=True,
             )
